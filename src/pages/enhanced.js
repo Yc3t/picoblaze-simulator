@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 const EnhancedPicoBlazeSimulator = () => {
+  // State for PicoBlaze components
   const [registers, setRegisters] = useState(Array(16).fill(0));
   const [programCounter, setProgramCounter] = useState(0);
   const [instruction, setInstruction] = useState('0000000000000000');
@@ -12,13 +13,18 @@ const EnhancedPicoBlazeSimulator = () => {
   const [output, setOutput] = useState('');
   const [memory, setMemory] = useState(Array(256).fill(0));
   const [program, setProgram] = useState([]);
-  
-  // AES state
+  const [programLines, setProgramLines] = useState([]);
+
+  // State for AES functionality
   const [aesKey, setAesKey] = useState(new Array(16).fill(0));
   const [aesPlaintext, setAesPlaintext] = useState(new Array(16).fill(0));
   const [aesCiphertext, setAesCiphertext] = useState(new Array(16).fill(0));
   const [aesOperation, setAesOperation] = useState('');
   const [aesOperationComplete, setAesOperationComplete] = useState(false);
+
+  // State for debugging
+  const [isRunning, setIsRunning] = useState(false);
+  const [breakpoints, setBreakpoints] = useState([]);
 
   const decodeInstruction = (instr) => {
     const opcode = instr.slice(0, 5);
@@ -204,24 +210,84 @@ const EnhancedPicoBlazeSimulator = () => {
 
   const loadProgram = (programText) => {
     const lines = programText.split('\n');
-    const newProgram = lines.map(line => {
-      const parts = line.trim().split(/\s+/);
-      if (parts.length >= 2) {
-        return parts[1];
+    const newProgram = [];
+    const newProgramLines = [];
+
+    lines.forEach((line, index) => {
+      // Remove comments
+      const commentIndex = line.indexOf(';');
+      const codeLine = commentIndex !== -1 ? line.slice(0, commentIndex) : line;
+      
+      // Trim whitespace
+      const trimmedLine = codeLine.trim();
+      
+      // Extract the 16-bit instruction if present
+      const parts = trimmedLine.split(/\s+/);
+      const instruction = parts.find(part => /^[01]{16}$/.test(part));
+
+      if (instruction) {
+        newProgram.push(instruction);
+        newProgramLines.push({ 
+          number: index + 1, 
+          original: line.trim(), 
+          instruction: instruction 
+        });
+      } else if (trimmedLine) {
+        // If there's content but no valid instruction, still add the line for display
+        newProgramLines.push({ 
+          number: index + 1, 
+          original: line.trim(), 
+          instruction: null 
+        });
       }
-      return '';
-    }).filter(instr => instr.length === 16);
+    });
+
     setProgram(newProgram);
+    setProgramLines(newProgramLines);
     setProgramCounter(0);
+    setOutput('Program loaded. Ready to execute.');
   };
 
-  const runProgram = () => {
+  const runStep = () => {
     if (programCounter < program.length) {
       setInstruction(program[programCounter]);
       executeInstruction();
+      setOutput(`Executed instruction at line ${programCounter + 1}`);
     } else {
       setOutput('Program finished');
+      setIsRunning(false);
     }
+  };
+
+  const runAll = () => {
+    setIsRunning(true);
+    const runLoop = () => {
+      if (programCounter < program.length && isRunning) {
+        runStep();
+        if (!breakpoints.includes(programCounter + 1)) {
+          setTimeout(runLoop, 100); // Adjust delay as needed
+        } else {
+          setOutput(`Breakpoint hit at line ${programCounter + 1}`);
+          setIsRunning(false);
+        }
+      } else {
+        setIsRunning(false);
+      }
+    };
+    runLoop();
+  };
+
+  const stopExecution = () => {
+    setIsRunning(false);
+    setOutput('Execution stopped');
+  };
+
+  const toggleBreakpoint = (lineNumber) => {
+    setBreakpoints(prev => 
+      prev.includes(lineNumber)
+        ? prev.filter(bp => bp !== lineNumber)
+        : [...prev, lineNumber]
+    );
   };
 
   const handleAESInput = (type, index, value) => {
@@ -238,89 +304,127 @@ const EnhancedPicoBlazeSimulator = () => {
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto">
-      <h2 className="text-2xl font-bold mb-4">PicoBlaze Simulator with AES</h2>
-      <div className="mb-4">
-        <p>Program Counter: {programCounter}</p>
-        <p>Carry Flag: {carryFlag ? '1' : '0'}</p>
-        <p>Zero Flag: {zeroFlag ? '1' : '0'}</p>
-        <p>Interrupt: {interruptEnabled ? 'Enabled' : 'Disabled'}</p>
-      </div>
-      <div className="mb-4">
-        <p>Registers:</p>
-        <div className="grid grid-cols-4 gap-2">
-          {registers.map((value, index) => (
-            <div key={index} className="border p-2">
-              s{index}: {value}
-            </div>
-          ))}
+    <div className="flex p-4 max-w-6xl mx-auto">
+      <div className="w-3/4 pr-4">
+        <h2 className="text-2xl font-bold mb-4">PicoBlaze Simulator with AES</h2>
+        <div className="mb-4">
+          <p>Program Counter: {programCounter}</p>
+          <p>Carry Flag: {carryFlag ? '1' : '0'}</p>
+          <p>Zero Flag: {zeroFlag ? '1' : '0'}</p>
+          <p>Interrupt: {interruptEnabled ? 'Enabled' : 'Disabled'}</p>
         </div>
-      </div>
-      <div className="mb-4">
-        <Input
-          value={instruction}
-          onChange={(e) => setInstruction(e.target.value)}
-          placeholder="Enter 16-bit instruction"
-          className="mb-2"
-        />
-        <p>Decoded: {decodeInstruction(instruction)}</p>
-      </div>
-      <Button onClick={executeInstruction} className="mb-4 mr-2">Execute Instruction</Button>
-      <Button onClick={runProgram} className="mb-4">Run Next Instruction</Button>
-      <div className="mb-4">
-        <p>{output}</p>
-      </div>
-      <div className="mb-4">
-        <h3 className="text-xl font-bold mb-2">AES Configuration</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <h4 className="font-bold">Key</h4>
-            {aesKey.map((byte, index) => (
-              <Input
-                key={index}
-                type="number"
-                value={byte}
-                onChange={(e) => handleAESInput('key', index, e.target.value)}
-                className="mb-1"
-                placeholder={`Key byte ${index}`}
-              />
-            ))}
-          </div>
-          <div>
-            <h4 className="font-bold">Plaintext</h4>
-            {aesPlaintext.map((byte, index) => (
-              <Input
-                key={index}
-                type="number"
-                value={byte}
-                onChange={(e) => handleAESInput('plaintext', index, e.target.value)}
-                className="mb-1"
-                placeholder={`Plaintext byte ${index}`}
-              />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="mb-4">
-        <h3 className="text-xl font-bold mb-2">AES Result</h3>
-        <div>
-          <h4 className="font-bold">Ciphertext</h4>
+        <div className="mb-4">
+          <p>Registers:</p>
           <div className="grid grid-cols-4 gap-2">
-            {aesCiphertext.map((byte, index) => (
+            {registers.map((value, index) => (
               <div key={index} className="border p-2">
-                Byte {index}: {byte}
+                s{index}: {value}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="mb-4">
+          <Input
+            value={instruction}
+            onChange={(e) => setInstruction(e.target.value)}
+            placeholder="Enter 16-bit instruction"
+            className="mb-2"
+          />
+          <p>Decoded: {decodeInstruction(instruction)}</p>
+        </div>
+        <div className="mb-4">
+          <p>{output}</p>
+        </div>
+        <div className="mb-4">
+          <h3 className="text-xl font-bold mb-2">AES Configuration</h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <h4 className="font-bold">Key</h4>
+              {aesKey.map((byte, index) => (
+                <Input
+                  key={index}
+                  type="number"
+                  value={byte}
+                  onChange={(e) => handleAESInput('key', index, e.target.value)}
+                  className="mb-1"
+                  placeholder={`Key byte ${index}`}
+                />
+              ))}
+            </div>
+            <div>
+              <h4 className="font-bold">Plaintext</h4>
+              {aesPlaintext.map((byte, index) => (
+                <Input
+                  key={index}
+                  type="number"
+                  value={byte}
+                  onChange={(e) => handleAESInput('plaintext', index, e.target.value)}
+                  className="mb-1"
+                  placeholder={`Plaintext byte ${index}`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mb-4">
+          <h3 className="text-xl font-bold mb-2">AES Result</h3>
+          <div>
+            <h4 className="font-bold">Ciphertext</h4>
+            <div className="grid grid-cols-4 gap-2">
+              {aesCiphertext.map((byte, index) => (
+                <div key={index} className="border p-2">
+                  Byte {index}: {byte}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="mb-4">
+          <h3 className="text-xl font-bold mb-2">Program</h3>
+          <div className="border rounded p-2 bg-gray-100 overflow-y-auto max-h-60">
+            {programLines.map((line, index) => (
+              <div key={index} className="flex items-center mb-1">
+                <span className="w-8 text-right mr-2 text-gray-500">{line.number}:</span>
+                <span className={`font-mono ${line.instruction ? '' : 'text-gray-500'}`}>
+                  {line.original}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <textarea
+          className="w-full h-40 p-2 border rounded"
+          placeholder="Paste your program here"
+          onChange={(e) => loadProgram(e.target.value)}
+        />
+      </div>
+      <div className="w-1/4 pl-4 border-l">
+        <h3 className="text-xl font-bold mb-4">Debugger</h3>
+        <Button onClick={runStep} className="mb-2 w-full">Step</Button>
+        <Button onClick={runAll} className="mb-2 w-full" disabled={isRunning}>Run All</Button>
+        <Button onClick={stopExecution} className="mb-2 w-full" disabled={!isRunning}>Stop</Button>
+        <div className="mt-4">
+          <h4 className="font-bold mb-2">Breakpoints</h4>
+          <div className="overflow-y-auto max-h-60">
+            {programLines.map((line, index) => (
+              <div key={index} className="flex items-center mb-1">
+                <input
+                  type="checkbox"
+                  checked={breakpoints.includes(line.number)}
+                  onChange={() => toggleBreakpoint(line.number)}
+                  className="mr-2"
+                  disabled={!line.instruction}
+                />
+                <span className={line.instruction ? '' : 'text-gray-500'}>
+                  Line {line.number}
+                </span>
               </div>
             ))}
           </div>
         </div>
       </div>
-      <textarea
-        className="w-full h-40 p-2 border rounded"
-        placeholder="Paste your program here"
-        onChange={(e) => loadProgram(e.target.value)}
-      />
     </div>
   );
 };
 
-export default EnhancedPicoBlazeSimulator
+export default EnhancedPicoBlazeSimulator;

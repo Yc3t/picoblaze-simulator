@@ -1,0 +1,54 @@
+; PicoBlaze AES Example Program
+
+; Load AES key (16 bytes)
+0000000000000001 ; LOAD s0, 1
+0001000001000001 ; LOAD s1, 65
+1001100000000001 ; OUTPUT s0, 129 ; Port 129 (0x81) is the start of the key input
+1001100001000001 ; OUTPUT s1, 129 ; This loads the first byte of the key (0x01)
+0000000000000010 ; LOAD s0, 2
+0001000001000010 ; LOAD s1, 66
+1001100000000010 ; OUTPUT s0, 130
+1001100001000010 ; OUTPUT s1, 130 ; This loads the second byte of the key (0x02)
+; ... (repeat for all 16 bytes of the key)
+
+; Load plaintext (16 bytes)
+0000000000001010 ; LOAD s0, 10
+0001000001001010 ; LOAD s1, 74
+1001100000010001 ; OUTPUT s0, 145 ; Port 145 (0x91) is the start of the plaintext input
+1001100001010001 ; OUTPUT s1, 145 ; This loads the first byte of the plaintext (0x0A)
+0000000000001011 ; LOAD s0, 11
+0001000001001011 ; LOAD s1, 75
+1001100000010010 ; OUTPUT s0, 146
+1001100001010010 ; OUTPUT s1, 146 ; This loads the second byte of the plaintext (0x0B)
+; ... (repeat for all 16 bytes of the plaintext)
+
+; Start AES encryption
+1111100000000000 ; AES_ENCRYPT
+
+; Wait for encryption to complete
+1000000010000000 ; INPUT s0, 128 ; Read status from port 128 (0x80)
+0001000000000001 ; AND s0, 1    ; Check if bit 0 is set (encryption done)
+1101000000001011 ; JUMP Z, 11   ; If not set, jump back to INPUT instruction
+
+; Read encrypted data (first byte)
+1000000010010001 ; INPUT s0, 145 ; Read from port 145 (0x91)
+1001100000011111 ; OUTPUT s0, 31 ; Store in memory (address 31 for example)
+
+; ... (repeat for all 16 bytes of ciphertext)
+
+; Start AES decryption
+1111000000000000 ; AES_DECRYPT
+
+; Wait for decryption to complete
+1000000010000000 ; INPUT s0, 128 ; Read status from port 128 (0x80)
+0001000000000010 ; AND s0, 2    ; Check if bit 1 is set (decryption done)
+1101000000011000 ; JUMP Z, 24   ; If not set, jump back to INPUT instruction
+
+; Read decrypted data (first byte)
+1000000010010001 ; INPUT s0, 145 ; Read from port 145 (0x91)
+1001100000100000 ; OUTPUT s0, 32 ; Store in memory (address 32 for example)
+
+; ... (repeat for all 16 bytes of decrypted plaintext)
+
+; End of program
+1100000000000000 ; JUMP 0 ; Loop back to start
