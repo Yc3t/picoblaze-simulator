@@ -367,49 +367,61 @@
   }
 ],
 "cryptoboom": [
+
     {
-      "question": "Given the encryption key $(e, n) = (5, 14)$ and the plaintext $B \\rightarrow 2$, what is the ciphertext using the encryption formula $C = P^e \\mod n$?",
+      "question": "In the DES algorithm, how is the right half (R_i) of each round calculated?",
       "options": [
-        "$C \\rightarrow 2$",
-        "$C \\rightarrow 4$",
-        "$C \\rightarrow 8$",
-        "$C \\rightarrow 10$"
+        "$R_i = L_{i-1} ⊕ f(R_{i-1}, K_i)$",
+        "$R_i = R_{i-1} ⊕ f(L_{i-1}, K_i)$",
+        "$R_i = L_{i-1} ⊕ f(L_{i-1}, K_i)$",
+        "$R_i = R_{i-1} ⊕ f(R_{i-1}, K_i)$"
+      ],
+      "correctAnswer": 0,
+      "explanation": "In DES, the right half of each round is calculated as $R_i = L_{i-1} ⊕ f(R_{i-1}, K_i)$, where $L_{i-1}$ is XORed with the result of the round function $f$ applied to $R_{i-1}$ and the round key $K_i$."
+    },
+    {
+      "question": "Which of the following correctly represents the encryption process in Triple DES?",
+      "options": [
+        "$Y = E_{k1}[E_{k2}[E_{k1}(X)]]$",
+        "$Y = E_{k1}[D_{k2}[E_{k1}(X)]]$",
+        "$Y = D_{k1}[E_{k2}[D_{k1}(X)]]$",
+        "$Y = E_{k2}[E_{k1}[E_{k2}(X)]]$"
       ],
       "correctAnswer": 1,
-      "explanation": "Using the encryption formula $C = P^e \\mod n$, substitute the given values: $C = 2^5 \\mod 14$. Calculate $2^5 = 32$ and $32 \\mod 14 = 4$. Thus, the ciphertext $C$ is $D \\rightarrow 4$."
+      "explanation": "The correct encryption process for Triple DES is $Y = E_{k1}[D_{k2}[E_{k1}(X)]]$, which involves encrypting with $k1$, then decrypting with $k2$, and finally encrypting again with $k1$."
     },
     {
-      "question": "Given the decryption key $(d, n) = (11, 14)$ and the ciphertext $D \\rightarrow 4$, what is the plaintext using the decryption formula $P = C^d \\mod n$?",
+      "question": "In DES operating modes, which mode uses the input as plaintext XOR previous ciphertext?",
       "options": [
-        "$P \\rightarrow 2$",
-        "$P \\rightarrow 4$",
-        "$P \\rightarrow 6$",
-        "$P \\rightarrow 8$"
+        "ECB (Electronic CodeBlock)",
+        "CBC (Cipher Block Chaining)",
+        "CFB (Cipher Feedback)",
+        "OFB (Output Feedback)"
       ],
-      "correctAnswer": 0,
-      "explanation": "Using the decryption formula $P = C^d \\mod n$, substitute the given values: $P = 4^{11} \\mod 14$. To simplify $4^{11} \\mod 14$, use properties of modular arithmetic: $4^2 \\mod 14 = 16 \\mod 14 = 2$, $4^4 = (4^2)^2 = 2^2 = 4 \\mod 14$, $4^8 = (4^4)^2 = 4^2 = 2 \\mod 14$. Then $4^{11} = 4^8 \\cdot 4^2 \\cdot 4 \\mod 14 = (2 \\cdot 2 \\cdot 4) \\mod 14 = 16 \\mod 14 = 2$. Thus, the plaintext $P$ is $B \\rightarrow 2$."
+      "correctAnswer": 1,
+      "explanation": "In the CBC (Cipher Block Chaining) mode, the input to the algorithm is plaintext XOR previous ciphertext. This creates a dependency between blocks, enhancing security."
     },
     {
-      "question": "How is the encryption key $(e, n)$ generated in the RSA algorithm?",
+      "question": "What is the key size and block size in Triple DES?",
       "options": [
-        "Choose two prime numbers $p$ and $q$, calculate $n = p \\cdot q$, choose $e$ such that $$1 < e < \\phi(n)$$ and $e$ is coprime with $\\phi(n)$.",
-        "Choose two prime numbers $p$ and $q$, calculate $n = p + q$, choose $e$ such that $e$ is a multiple of $\\phi(n)$.",
-        "Choose one prime number $p$, calculate $n = p^2$, choose $e$ such that $e$ is less than $n$.",
-        "Choose any two numbers, calculate $n = p \\cdot q$, choose $e$ randomly."
+        "Key: 128 bit, Block: 128 bit",
+        "Key: 168 bit, Block: 64 bit",
+        "Key: 128 bit, Block: 64 bit",
+        "Key: 112 bit, Block: 56 bit"
       ],
-      "correctAnswer": 0,
-      "explanation": "The RSA algorithm involves: 1) Choosing two prime numbers $p$ and $q$ (e.g., $p=2, q=7$), 2) Calculating $n = p \\cdot q = 14$, 3) Calculating $\\phi(n) = (p-1)(q-1) = 1 \\times 6 = 6$, 4) Choosing $e$ such that $1 < e < \\phi(n)$ and $e$ is coprime with $n$ and $\\phi(n)$. In this case, $e = 5$ satisfies these conditions."
+      "correctAnswer": 2,
+      "explanation": "In Triple DES, the key size is 128 bits (split into two 64-bit keys $K_1$ and $K_2$), while the block size remains 64 bits, the same as in standard DES."
     },
     {
-      "question": "How is the decryption key $d$ chosen in the RSA algorithm?",
+      "question": "Which statement about Triple DES is correct?",
       "options": [
-        "$d$ is chosen such that $d \\cdot e \\equiv 1 \\mod(\\phi(n))$.",
-        "$d$ is chosen such that $d \\cdot e \\equiv 0 \\mod(\\phi(n))$.",
-        "$d$ is chosen such that $d + e = \\phi(n)$.",
-        "$d$ is chosen such that $d = e + 1$."
+        "It always provides triple the security of standard DES",
+        "When $K_1 = K_2$, it's equivalent to standard single DES",
+        "It uses three different keys for maximum security",
+        "The decryption process is $X = E_{k1}[D_{k2}[E_{k1}(Y)]]$"
       ],
-      "correctAnswer": 0,
-      "explanation": "The decryption key $d$ is chosen such that $d \\cdot e \\equiv 1 \\mod(\\phi(n))$. For example, with $e = 5$ and $\\phi(n) = 6$, we need $d \\cdot 5 \\equiv 1 \\mod 6$. The solution is $d = 11$ because $5 \\cdot 11 = 55$ and $55 \\mod 6 = 1$. Thus, the decryption key is $(d, n) = (11, 14)$."
+      "correctAnswer": 1,
+      "explanation": "When $K_1 = K_2$ in Triple DES, it becomes equivalent to a standard single DES operation. This feature allows for backwards compatibility with systems using standard DES."
     }
   ]
 

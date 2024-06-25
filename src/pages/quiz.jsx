@@ -3,6 +3,7 @@ import { AlertCircle, CheckCircle, Clock, Award, RotateCcw, SkipForward, Pause, 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
 import 'katex/dist/katex.min.css';
 import { InlineMath, BlockMath } from 'react-katex';
 
@@ -13,7 +14,8 @@ export default function AdvancedNetworkSecurityGame() {
   const [showScore, setShowScore] = useState(false);
   const [showExplanation, setShowExplanation] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(0);
+  const [timeLimitInMinutes, setTimeLimitInMinutes] = useState(1);
   const [gameOver, setGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [selectedTopics, setSelectedTopics] = useState([]);
@@ -21,7 +23,7 @@ export default function AdvancedNetworkSecurityGame() {
   const [isLoading, setIsLoading] = useState(true);
   const [answeredQuestions, setAnsweredQuestions] = useState([]);
   const [gameStarted, setGameStarted] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetch('/questions.json')
@@ -48,13 +50,31 @@ export default function AdvancedNetworkSecurityGame() {
   }, [selectedTopics, allQuestions]);
 
   useEffect(() => {
-    if (gameStarted && !showScore && !gameOver && timeLeft > 0 && !isPaused && !isLoading) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
-      return () => clearTimeout(timer);
-    } else if (timeLeft === 0 && !isLoading) {
-      setGameOver(true);
+    let timer;
+    if (gameStarted && !showScore && !gameOver && timeLeft > 0 && !isPaused) {
+      timer = setInterval(() => {
+        setTimeLeft(prevTime => {
+          if (prevTime <= 1) {
+            clearInterval(timer);
+            setGameOver(true);
+            return 0;
+          }
+          return prevTime - 1;
+        });
+      }, 1000);
     }
-  }, [timeLeft, showScore, gameOver, isPaused, isLoading, gameStarted]);
+    return () => clearInterval(timer);
+  }, [gameStarted, showScore, gameOver, isPaused, timeLeft]);
+
+  useEffect(() => {
+    if (gameStarted) {
+      setTimeLeft(timeLimitInMinutes * 60);
+      setGameOver(false);
+      setShowScore(false);
+      setCurrentQuestion(0);
+      setScore(0);
+    }
+  }, [gameStarted, timeLimitInMinutes]);
 
   const handleAnswerClick = (selectedAnswer) => {
     const newAnsweredQuestions = [...answeredQuestions];
@@ -75,7 +95,7 @@ export default function AdvancedNetworkSecurityGame() {
     const nextQuestion = currentQuestion + 1;
     if (nextQuestion < questions.length) {
       setCurrentQuestion(nextQuestion);
-      setTimeLeft(60);
+      setTimeLeft(timeLimitInMinutes * 60);
     } else {
       setShowScore(true);
     }
@@ -85,20 +105,20 @@ export default function AdvancedNetworkSecurityGame() {
     if (currentQuestion > 0) {
       setCurrentQuestion(currentQuestion - 1);
       setShowExplanation(false);
-      setTimeLeft(60);
+      setTimeLeft(timeLimitInMinutes * 60);
     }
   };
 
   const restartGame = () => {
+    setGameStarted(true);
     setCurrentQuestion(0);
     setScore(0);
     setShowScore(false);
     setShowExplanation(false);
     setGameOver(false);
-    setTimeLeft(60);
+    setTimeLeft(timeLimitInMinutes * 60);
     setIsPaused(false);
     setAnsweredQuestions(new Array(questions.length).fill(null));
-    setGameStarted(false);
   };
 
   const startGame = () => {
@@ -124,10 +144,10 @@ export default function AdvancedNetworkSecurityGame() {
         : [...prevTopics, topic]
     );
   };
+
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
   };
-
   const renderLatex = (text) => {
     const parts = text.split(/(\$\$[\s\S]*?\$\$|\$.*?\$)/);
     return parts.map((part, index) => {
@@ -175,6 +195,17 @@ export default function AdvancedNetworkSecurityGame() {
             </div>
           ))}
         </div>
+        <div className="mt-4">
+          <label htmlFor="timeLimit" className="block mb-2">Time Limit (minutes):</label>
+          <Input
+            type="number"
+            id="timeLimit"
+            value={timeLimitInMinutes}
+            onChange={(e) => setTimeLimitInMinutes(Math.max(1, parseInt(e.target.value) || 1))}
+            min="1"
+            className="w-full mb-4"
+          />
+        </div>
         {!gameStarted && (
           <Button onClick={startGame} disabled={selectedTopics.length === 0} className="mt-4 w-full">
             Start Quiz
@@ -204,8 +235,6 @@ export default function AdvancedNetworkSecurityGame() {
   if (isLoading) {
     return <div>Loading questions...</div>;
   }
-
- 
   return (
     <div className="flex">
       <CustomSidebar />
@@ -224,7 +253,7 @@ export default function AdvancedNetworkSecurityGame() {
                   </Button>
                   <div className="flex items-center">
                     <Clock className="mr-2" />
-                    <span className="text-xl font-semibold">{timeLeft}s</span>
+                    <span className="text-xl font-semibold">{Math.floor(timeLeft / 60)}:{(timeLeft % 60).toString().padStart(2, '0')}</span>
                   </div>
                 </>
               )}
@@ -232,11 +261,11 @@ export default function AdvancedNetworkSecurityGame() {
           </div>
           {!gameStarted ? (
             <div className="text-center">
-              <h3 className="text-xl mb-4">Select topics and start the quiz when you're ready!</h3>
+              <h3 className="text-xl mb-4">Select topics, set the time limit, and start the quiz when you're ready!</h3>
             </div>
           ) : (
             <>
-              <Progress value={(timeLeft / 60) * 100} className="mb-4" />
+              <Progress value={(timeLeft / (timeLimitInMinutes * 60)) * 100} className="mb-4" />
               {(showScore || gameOver) ? (
                 <div className="text-center">
                   <h2 className="text-3xl font-bold mb-4">Game Over!</h2>
@@ -251,27 +280,27 @@ export default function AdvancedNetworkSecurityGame() {
                   <p className="mb-4">Question {currentQuestion + 1} of {questions.length}</p>
                   <p className="text-lg font-semibold mb-4">{renderLatex(questions[currentQuestion].question)}</p>
                   <div className="space-y-2 mb-4">
-                  {questions[currentQuestion].options.map((option, index) => (
-                <Button
-                    key={index}
-                    onClick={() => handleAnswerClick(index)}
-                    className={`w-full justify-start text-left ${answeredQuestions[currentQuestion] === index ? 'bg-blue-500' : ''}`}
-                    disabled={showExplanation}
-                    style={{
-                    padding: '10px',
-                    height: 'auto',
-                    whiteSpace: 'normal',  // Allow text wrapping
-                    wordBreak: 'break-word',  // Handle long words
-                    display: 'flex', // Flexbox for alignment
-                    alignItems: 'center', // Center align items vertically
-                    minHeight: '50px' // Ensure a minimum height for better spacing
-                    }}
-                >
-                    <div style={{ width: '100%' }}>
-                    {renderLatex(option)}
-                    </div>
-                </Button>
-))}
+                    {questions[currentQuestion].options.map((option, index) => (
+                      <Button
+                        key={index}
+                        onClick={() => handleAnswerClick(index)}
+                        className={`w-full justify-start text-left ${answeredQuestions[currentQuestion] === index ? 'bg-blue-500' : ''}`}
+                        disabled={showExplanation}
+                        style={{
+                          padding: '10px',
+                          height: 'auto',
+                          whiteSpace: 'normal',
+                          wordBreak: 'break-word',
+                          display: 'flex',
+                          alignItems: 'center',
+                          minHeight: '50px'
+                        }}
+                      >
+                        <div style={{ width: '100%' }}>
+                          {renderLatex(option)}
+                        </div>
+                      </Button>
+                    ))}
                   </div>
                   {showExplanation && (
                     <Alert className={`mt-4 ${isCorrect ? 'bg-green-100' : 'bg-red-100'}`}>
